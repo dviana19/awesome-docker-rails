@@ -25,11 +25,7 @@ WORKDIR /rails
 
 # Install packages needed to build gems
 RUN apt-get update -qq && \
-    apt-get install --no-install-recommends -y build-essential git libpq-dev libvips pkg-config curl gnupg2 postgresql-client nano nodejs npm
-
-RUN curl -sS https://dl.yarnpkg.com/debian/pubkey.gpg | apt-key add -
-RUN echo "deb https://dl.yarnpkg.com/debian/ stable main" | tee /etc/apt/sources.list.d/yarn.list
-RUN npm install --global yarn
+    apt-get install --no-install-recommends -y build-essential git libpq-dev libvips pkg-config curl gnupg2 postgresql-client nano
 
 # Copy application code
 COPY . .
@@ -57,7 +53,7 @@ Next, open an editor and create a bootstrap `Gemfile` which just loads Rails. Th
 
 ```ruby
 source 'https://rubygems.org'
-gem 'rails', '~> 7.1.0.rc1'
+gem 'rails', '~> 7.1'
 ```
 
 Create an empty `Gemfile.lock` file to build our `Dockerfile`.
@@ -124,7 +120,7 @@ With those files in place, you can now generate the Rails skeleton app
 using [docker compose run](https://docs.docker.com/engine/reference/commandline/compose_run/):
 
 ```console
-$ docker compose run --no-deps web rails new . --name=my_app_name  --force --database=postgresql --css=tailwind --javascript=esbuild
+$ docker compose run --no-deps web rails new . --name=my_app_name  --force --database=postgresql --css=tailwind
 ```
 
 First, Compose builds the image for the `web` service using the `Dockerfile`.
@@ -211,9 +207,8 @@ production:
 
 Before you can boot your app, you need to make sure the Procfile.dev looks like this:
 ```
-web: env RUBY_DEBUG_OPEN=true bin/rails server -b '0.0.0.0'
-js: yarn build --watch
-css: yarn build:css --watch
+web: env RUBY_DEBUG_OPEN=true bin/rails server -p 3000 -b '0.0.0.0'
+css: bin/rails tailwindcss:watch
 ```
 
 Remember the tty:true in docker-compose.yml? Without that option the parameter --watch won't work.
