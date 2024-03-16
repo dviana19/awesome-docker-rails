@@ -13,12 +13,17 @@ a file called `Dockerfile.dev`. To begin with, the  Dockerfile consists of:
 
 Don't forget to create a folder for your project so you can place all the following files there.
 
+I'm going to present you two Dockefile alternatives:
+1. The first one is focused on not using any JS builder/bundler, in case you want to use only importmaps. No node or pkg manager required(npm or yarn)
+2. The second one is focused on USING esbuild that's why is necessary to have node and yarn installed.
+
+# version 1
 ```dockerfile
 # syntax = docker/dockerfile:1
 
 # Make sure RUBY_VERSION matches the Ruby version in .ruby-version and Gemfile
-ARG RUBY_VERSION=3.2.2
-FROM registry.docker.com/library/ruby:$RUBY_VERSION-slim
+ARG RUBY_VERSION=3.3.0
+FROM registry.docker.com/library/ruby:$RUBY_VERSION-slim-bookworm
 
 # Rails app lives here
 WORKDIR /rails
@@ -40,6 +45,45 @@ ENTRYPOINT ["sh", "/rails/entrypoint.sh"]
 EXPOSE 3000
 CMD ["rails", "server", "-b", "0.0.0.0"]
 ```
+# version 2
+```dockerfile
+# syntax = docker/dockerfile:1
+
+# Make sure RUBY_VERSION matches the Ruby version in .ruby-version and Gemfile
+ARG RUBY_VERSION=3.3.0
+FROM registry.docker.com/library/ruby:$RUBY_VERSION-slim-bookworm
+
+# Rails app lives here
+WORKDIR /rails
+
+# Install packages needed to build gems
+RUN apt-get update -qq && \
+  apt-get install --no-install-recommends -y build-essential git libpq-dev libvips pkg-config curl gnupg2 postgresql-client nano
+
+# Install JavaScript dependencies
+ARG NODE_VERSION=18.15.0
+ARG YARN_VERSION=latest
+ENV PATH=/usr/local/node/bin:$PATH
+RUN curl -sL https://github.com/nodenv/node-build/archive/master.tar.gz | tar xz -C /tmp/ && \
+  /tmp/node-build-master/bin/node-build "${NODE_VERSION}" /usr/local/node && \
+  npm install -g yarn@$YARN_VERSION && \
+  rm -rf /tmp/node-build-master
+
+# Copy application code
+COPY . .
+
+RUN bundle install
+RUN gem install foreman
+
+# Entrypoint prepares the database.
+ENTRYPOINT ["sh", "/rails/entrypoint.sh"]
+
+# Start the server by default, this can be overwritten at runtime
+EXPOSE 3000
+CMD ["rails", "server", "-b", "0.0.0.0"]
+
+```
+
 > **Tip**
 >
 > It is important to use the .dev as extension for this file otherwise rails new command will replace it.
@@ -100,7 +144,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.dev
-    command: bash -c "rm -f tmp/pids/server.pid && ./bin/dev"
+    command: bash -c "./bin/dev"
     tty: true
     volumes:
       - .:/rails
@@ -120,7 +164,11 @@ With those files in place, you can now generate the Rails skeleton app
 using [docker compose run](https://docs.docker.com/engine/reference/commandline/compose_run/):
 
 ```console
+# if you choose without any JS runtime dependency(node)
 $ docker compose run --no-deps web rails new . --name=my_app_name  --force --database=postgresql --css=tailwind
+
+# if you choose with JS runtime dependency(node)
+$ docker compose run --no-deps web rails new . --name=my_app_name  --force --database=postgresql --css=tailwind --js=esbuild
 ```
 
 First, Compose builds the image for the `web` service using the `Dockerfile`.
@@ -206,9 +254,18 @@ production:
 ```
 
 Before you can boot your app, you need to make sure the Procfile.dev looks like this:
+
+### without any JS runtime dependency(i.e. node)
 ```
 web: env RUBY_DEBUG_OPEN=true bin/rails server -p 3000 -b '0.0.0.0'
 css: bin/rails tailwindcss:watch
+```
+
+### WITH a JS runtime dependency(i.e. node)
+```
+web: env RUBY_DEBUG_OPEN=true bin/rails server -p 3000 -b '0.0.0.0'
+js: yarn build --watch
+css: yarn build:css --watch
 ```
 
 Remember the tty:true in docker-compose.yml? Without that option the parameter --watch won't work.
