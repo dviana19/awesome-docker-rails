@@ -17,7 +17,7 @@ I'm going to present you two Dockefile alternatives:
 1. The first one is focused on not using any JS builder/bundler, in case you want to use only importmaps. No node or pkg manager required(npm or yarn)
 2. The second one is focused on USING esbuild that's why is necessary to have node and yarn installed.
 
-# version 1
+## version 1
 ```dockerfile
 # syntax = docker/dockerfile:1
 
@@ -45,7 +45,7 @@ ENTRYPOINT ["sh", "/rails/entrypoint.sh"]
 EXPOSE 3000
 CMD ["rails", "server", "-b", "0.0.0.0"]
 ```
-# version 2
+## version 2
 ```dockerfile
 # syntax = docker/dockerfile:1
 
@@ -58,7 +58,7 @@ WORKDIR /rails
 
 # Install packages needed to build gems
 RUN apt-get update -qq && \
-  apt-get install --no-install-recommends -y build-essential git libpq-dev libvips pkg-config curl gnupg2 postgresql-client nano
+  apt-get install --no-install-recommends -y build-essential git libpq-dev libvips pkg-config curl gnupg2 node-gyp postgresql-client nano
 
 # Install JavaScript dependencies
 ARG NODE_VERSION=18.15.0
@@ -163,11 +163,12 @@ services:
 With those files in place, you can now generate the Rails skeleton app
 using [docker compose run](https://docs.docker.com/engine/reference/commandline/compose_run/):
 
+#### if you choose without any JS runtime dependency(node)
 ```console
-# if you choose without any JS runtime dependency(node)
 $ docker compose run --no-deps web rails new . --name=my_app_name  --force --database=postgresql --css=tailwind
-
-# if you choose with JS runtime dependency(node)
+```
+#### if you choose with JS runtime dependency(node)
+```console
 $ docker compose run --no-deps web rails new . --name=my_app_name  --force --database=postgresql --css=tailwind --js=esbuild
 ```
 
