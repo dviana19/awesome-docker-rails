@@ -32,11 +32,12 @@ WORKDIR /rails
 RUN apt-get update -qq && \
     apt-get install --no-install-recommends -y build-essential git libpq-dev libvips pkg-config curl gnupg2 postgresql-client nano
 
+# Run bundle install
+COPY Gemfile Gemfile.lock ./
+RUN bundle install
+
 # Copy application code
 COPY . .
-
-RUN bundle install
-RUN gem install foreman
 
 # Entrypoint prepares the database.
 ENTRYPOINT ["sh", "/rails/entrypoint.sh"]
@@ -69,11 +70,12 @@ RUN curl -sL https://github.com/nodenv/node-build/archive/master.tar.gz | tar xz
   npm install -g yarn@$YARN_VERSION && \
   rm -rf /tmp/node-build-master
 
+# Run bundle install
+COPY Gemfile Gemfile.lock ./
+RUN bundle install
+
 # Copy application code
 COPY . .
-
-RUN bundle install
-RUN gem install foreman
 
 # Entrypoint prepares the database.
 ENTRYPOINT ["sh", "/rails/entrypoint.sh"]
